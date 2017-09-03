@@ -93,7 +93,7 @@ for domain_1st_party, visited_domains in visited_3rd_party_second_level_domains.
     if len(visited_domains) > 2:
         domains_1st_party_that_loaded_enough_3rd_party_domains.add(domain_1st_party)
 
-keywords_suspicious_3rd_party_domains = ["tag", "count", "user", "email", "opt", "chart", "stat", "ping", "click", "track", "ero", "data", "page", "reklam", "klik", "pocit", "check", "market", "lead", "reach", "affil", "platf", "yield", "engag", "media", "domain", "metric", "visit", ".ad", "ad.", "ads.", "adm.", "adn.", "adx.", "ad0.", "ad1.", "ad2.", "ad3.", "ad4.", "ad5.", "ad6.", "ad7.", "ad8.", "ad9.", ".ad", "advert"]
+keywords_suspicious_3rd_party_domains = ["tag", "count", "user", "email", "opt", "chart", "stat", "ping", "click", "track", "ero", "data", "page", "reklam", "klik", "pocit", "check", "market", "lead", "reach", "affil", "platf", "yield", "engag", "media", "domain", "metric", "visit", ".ad", "ad.", "ads.", "adm.", "adn.", "adx.", "ad0.", "ad1.", "ad2.", "ad3.", "ad4.", "ad5.", "ad6.", "ad7.", "ad8.", "ad9.", ".ad", "advert", "anal", "pixel", "pxl", "impact", "see", "view"  ]
 keywords_beginning_suspicious_3rd_party_domains = ["ads", "adx", "adn", "advert"]
 suspicious_3rd_party_domains = set()
 for domain in all_3rd_party_domains:
