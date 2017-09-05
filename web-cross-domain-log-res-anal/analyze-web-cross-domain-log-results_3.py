@@ -5,12 +5,21 @@
 #     * because of public suffixes that contain dots and any logic would make it less correct
 #     * because the visited domains are sourced from a list of top n _domains_
 # * performs detection of probable ad/tracking domains
-#     * if a given 1st party domain makes requests to 3rd party domains that fall under more than 2 second-level 3rd party domains, then such a 1st party domain probably includes interesting trackers and all its 3rd party requests are taken as probable trackers
+#     * if a given 1st party domain makes requests to 3rd party domains that fall under more than `n` second-level 1st party domains, then such a 1st party domain probably includes interesting trackers and all its 3rd party requests are taken as probable trackers
 #     * 3rd party domains that include a suspicious keyword are taken as probable trackers
 #     * some domains are whitelisted
 import sys
 
-hack_TLDs_with_dot = ["co.uk", "com.cn"]
+# from how many 1st party domains a 3rd party domain must be included in order to be considered a tracker
+MIN_INCLUDED_SUSPICIOUS = 20
+
+# from how many 1st party domains a 3rd party domain must be included in order to be reported to the user (final filter on the suspicious domains just before printing the results)
+MIN_INCLUDED_REPORT = 6
+
+# it should hold that MIN_INCLUDED_REPORT < MIN_INCLUDED_SUSPICIOUS plus some more
+assert MIN_INCLUDED_REPORT + 6 < MIN_INCLUDED_SUSPICIOUS
+
+hack_TLDs_with_dot = ["co.uk", "com.cn", "com.au", "com.br", "azureedge.net", "azurewebsites.net", "co.nz", "org.br", "com.vn", "tmall.com", "com.pl", "org.uk", "wz.cz", "co.jp", ]
 hack_TLDs_with_dot_mangled = [x.replace(".", "§§§") for x in hack_TLDs_with_dot]
 def hack_TLDs_mangle_TLD(domain):
     # turn example.co.uk into example.co§§§uk
@@ -68,32 +77,40 @@ with open(sys.argv[1]) as fp:
 
 # 3rd party domain, number of 1st party domains that requested this 3rd party domain
 stats_3rd_party_domains = []
+stats_3rd_party_domains_dict_nums = {}
+for domain_1st_party, visited in visited_3rd_party_domains.items():
+    for visited_domain in visited:
+        if visited_domain in stats_3rd_party_domains_dict_nums:
+            stats_3rd_party_domains_dict_nums[visited_domain] += 1
+        else:
+            stats_3rd_party_domains_dict_nums[visited_domain] = 1
 for domain_3rd_party_sought in all_3rd_party_domains:
-    requested_times = 0
-    for domain_1st_party, visited in visited_3rd_party_domains.items():
-        for visited_domain in visited:
-            if visited_domain == domain_3rd_party_sought:
-                requested_times += 1
-    stats_3rd_party_domains.append( (domain_3rd_party_sought, requested_times) )
+    if domain_3rd_party_sought in stats_3rd_party_domains_dict_nums:
+        stats_3rd_party_domains.append( (domain_3rd_party_sought, stats_3rd_party_domains_dict_nums[domain_3rd_party_sought]) )
 stats_3rd_party_domains.sort(key=lambda x: x[1], reverse=True)
 
+
 stats_3rd_party_second_level_domains = []
+stats_3rd_party_second_level_domains_dict_nums = {}
+for domain_1st_party, visited in visited_3rd_party_second_level_domains.items():
+    for visited_domain in visited:
+        if visited_domain in stats_3rd_party_second_level_domains_dict_nums:
+            stats_3rd_party_second_level_domains_dict_nums[visited_domain] += 1
+        else:
+            stats_3rd_party_second_level_domains_dict_nums[visited_domain] = 1
 for domain_3rd_party_sought in all_3rd_party_second_level_domains:
-    requested_times = 0
-    for domain_1st_party, visited in visited_3rd_party_second_level_domains.items():
-        for visited_domain in visited:
-            if visited_domain == domain_3rd_party_sought:
-                requested_times += 1
-    stats_3rd_party_second_level_domains.append( (domain_3rd_party_sought, requested_times) )
+    if domain_3rd_party_sought in stats_3rd_party_second_level_domains_dict_nums:
+        stats_3rd_party_second_level_domains.append( (domain_3rd_party_sought, stats_3rd_party_second_level_domains_dict_nums[domain_3rd_party_sought]) )
 stats_3rd_party_second_level_domains.sort(key=lambda x: x[1], reverse=True)
+
 
 
 domains_1st_party_that_loaded_enough_3rd_party_domains = set()
 for domain_1st_party, visited_domains in visited_3rd_party_second_level_domains.items():
-    if len(visited_domains) > 2:
+    if len(visited_domains) > MIN_INCLUDED_SUSPICIOUS:
         domains_1st_party_that_loaded_enough_3rd_party_domains.add(domain_1st_party)
 
-keywords_suspicious_3rd_party_domains = ["tag", "count", "user", "email", "opt", "chart", "stat", "ping", "click", "track", "ero", "data", "page", "reklam", "klik", "pocit", "check", "market", "lead", "reach", "affil", "platf", "yield", "engag", "media", "domain", "metric", "visit", ".ad", "ad.", "ads.", "adm.", "adn.", "adx.", "ad0.", "ad1.", "ad2.", "ad3.", "ad4.", "ad5.", "ad6.", "ad7.", "ad8.", "ad9.", ".ad", "advert", "anal", "pixel", "pxl", "impact", "see", "view"  ]
+keywords_suspicious_3rd_party_domains = ["tag", "count", "user", "email", "opt", "chart", "stats", "statis", "stat.", "ping", "click", "track", "ero", "data", "page", "reklam", "klik", "pocit", "check", "market", "lead", "reach", "affil", "platf", "yield", "engag", "media", "domain", "metric", "visit", ".ad", "ad.", "ads.", "adm.", "adn.", "adx.", "ad0.", "ad1.", "ad2.", "ad3.", "ad4.", "ad5.", "ad6.", "ad7.", "ad8.", "ad9.", ".ad", "advert", "push", "pixel", "pixl", "pxl", "anal", "impact", "see", "view" ]
 keywords_beginning_suspicious_3rd_party_domains = ["ads", "adx", "adn", "advert"]
 suspicious_3rd_party_domains = set()
 for domain in all_3rd_party_domains:
@@ -108,16 +125,23 @@ for domain_1st_party, visited_domains in visited_3rd_party_domains.items():
     for visited_domain in visited_domains:
         if visited_domain in suspicious_3rd_party_domains:
             domains_1st_party_that_loaded_enough_3rd_party_domains.add(domain_1st_party)
+# generate second level suspicious domains from the suspicious domains
+suspicious_3rd_party_second_level_domains = set()
+for domain_suspicious in suspicious_3rd_party_domains:
+    domain_suspicious_second_level = ".".join(domain_suspicious.rsplit(".", 2)[-2:100000])
+    suspicious_3rd_party_second_level_domains.add(domain_suspicious_second_level)
 
 probably_tracking_3rd_party_second_level_domains = set()
 for domain_1st_party in domains_1st_party_that_loaded_enough_3rd_party_domains:
     its_3rd_party_domains = set(visited_3rd_party_second_level_domains[domain_1st_party])
     probably_tracking_3rd_party_second_level_domains.update(its_3rd_party_domains)
 
-# some of these have to be dealt manually on a subdomain basis (such as google.com), some of them are false positives (such as github.io)
+# some of these have to be dealt manually on a subdomain basis (such as google.com, gstatic.com), some of them are false positives (such as github.io)
 # it depends on personal taste where is your line between false and true positive
 whitelist_second_level_domains = set(["google.com", "comodo.com", "akamai.net", "o2.cz", "mapy.cz", "stripe.network", "getpocket.com", "microsoft.com",
-"s-microsoft.com", "akamaized.net", "typekit.com", "reddit.com", "stripe.com", "akamaihd.com", "googlecode.com", "windows.net", "imgur.com", "fontawesome.com", "appspot.com", "wp.com", "wordpress.com", "vimeo.com", "seznam.cz", "blogspot.cz", "blogspot.com", "github.io", "aspnetcdn.com", "vimeocdn.com", "blogger.com", "w.org", "jsdelivr.com", "t.co", "bing.com", "googleusercontent.com", "typekit.net", "twimg.com", "youtube.com", "ytimg.com", "jquery.com", "amazonaws.com", "cloudfront.net", "heureka.cz", "cloudflare.com", "bootstrapcdn.com", "twitter.com", "google.cz", "gstatic.com", "googleapis.com", "mathjax.org", 
+"s-microsoft.com", "akamaized.net", "typekit.com", "reddit.com", "stripe.com", "akamaihd.com", "googlecode.com", "windows.net", "imgur.com", "fontawesome.com", "appspot.com", "wp.com", "wordpress.com", "vimeo.com", "seznam.cz", "blogspot.cz", "blogspot.com", "github.io", "aspnetcdn.com", "vimeocdn.com", "blogger.com", "w.org", "jsdelivr.com", "jsdelivr.net", "t.co", "bing.com", "googleusercontent.com", "typekit.net", "twimg.com", "youtube.com", "ytimg.com", "jquery.com", "amazonaws.com", "cloudfront.net", "heureka.cz", "cloudflare.com", "bootstrapcdn.com", "twitter.com", "google.cz", "gstatic.com", "googleapis.com", "goo.gl", "szn.cz", "jquerytools.com", "adobetm.net", "adobetm.com", "steampowered.com", "steamstatic.com", "akamaihd.net", "pcworld.cz", "cz.", "com.", "virustotal.com", "nytimes.com", "muni.cz", "alza.cz", "penize.cz", "mathjax.org", 
+"free.fr", "wikimedia.org", "googlepages.com", "ggpht.com", "cad.cz", "rozhlas.cz", "github.com", "jquerytools.com", "polyfill.io", "ifirmy.cz", "webnode.cz", "webnode.com", "sdk.azureedge.net", "dropboxusercontent.com", "dropbox.com", "githubusercontent.com"
+
 ])
 
 # some domains are for ocsp https cert checking and similar stuff and we don't want to detect them as tracking domains (well, probably :D )
@@ -136,26 +160,31 @@ for domain in probably_tracking_3rd_party_second_level_domains:
 # apply whitelist
 probably_tracking_3rd_party_second_level_domains -= whitelist_second_level_domains
     
-# also whitelist domains that were included less than 2 times (because then the data are too imprecise)
-second_level_3rd_party_domains_that_were_included_2_or_more_times = set()
+# also whitelist non-suspicious domains that were included less than MIN_INCLUDED_SUSPICIOUS times (because else the data are too imprecise)
+# also whitelist suspicious domains that were included less than MIN_INCLUDED_REPORT times (because else the data are too imprecise)
+second_level_3rd_party_domains_that_were_included_n_or_more_times = set()
 for domain_2nd_level, num_of_inclusions in stats_3rd_party_second_level_domains:
-    if num_of_inclusions >= 2:
-        second_level_3rd_party_domains_that_were_included_2_or_more_times.add(domain_2nd_level)
+    if (
+        (num_of_inclusions >= MIN_INCLUDED_SUSPICIOUS)
+        or
+        (num_of_inclusions >= MIN_INCLUDED_REPORT and domain_2nd_level in suspicious_3rd_party_second_level_domains)
+    ):
+        second_level_3rd_party_domains_that_were_included_n_or_more_times.add(domain_2nd_level)
+probably_tracking_3rd_party_second_level_domains.intersection_update(second_level_3rd_party_domains_that_were_included_n_or_more_times)
 
-probably_tracking_3rd_party_second_level_domains.intersection_update(second_level_3rd_party_domains_that_were_included_2_or_more_times)
 
 
 # for user's overview
 print("3rd party domains without subdomain merging and without ad/tracking detection")
 print("-----------------------------------------------------------------------------\n")
-for i in range(min(200, len(stats_3rd_party_domains)-1)):
+for i in range(min(50000, len(stats_3rd_party_domains)-1)):
     print("{} {}".format(stats_3rd_party_domains[i][1], hack_TLDs_unmangle_TLD(stats_3rd_party_domains[i][0])))
 print("\n")
 
 # for user's overview of top-used 3rd party domains to aid decisions how to use the information for assembling a blocklist; not printing the 1st party domains so as not to be too long
 print("3rd party second-level domains without ad/tracking detection")
 print("------------------------------------------------------------\n")
-for i in range(min(200, len(stats_3rd_party_second_level_domains)-1)):
+for i in range(min(50000, len(stats_3rd_party_second_level_domains)-1)):
     print("{} {}".format(stats_3rd_party_second_level_domains[i][1], hack_TLDs_unmangle_TLD(stats_3rd_party_second_level_domains[i][0])))
     ending = stats_3rd_party_second_level_domains[i][0]
     # print all the individual 3rd party subdomains under this second-level domain
@@ -170,7 +199,7 @@ print("")
 
 print("3rd party second-level domains that are probably ads/trackers")
 print("-------------------------------------------------------------\n")
-for i in range(min(1000, len(stats_3rd_party_second_level_domains)-1)):
+for i in range(min(50000, len(stats_3rd_party_second_level_domains)-1)):
     num_of_inclusions_in_1st_party_domains = stats_3rd_party_second_level_domains[i][1]
     second_level_3rd_party_subdomain = stats_3rd_party_second_level_domains[i][0]
     # we are printing only those detected as trackers
@@ -191,7 +220,7 @@ print("")
 
 print("3rd party second-level domains that are probably ads/trackers - only the domains")
 print("--------------------------------------------------------------------------------\n")
-for i in range(min(1000, len(stats_3rd_party_second_level_domains)-1)):
+for i in range(min(50000, len(stats_3rd_party_second_level_domains)-1)):
     num_of_inclusions_in_1st_party_domains = stats_3rd_party_second_level_domains[i][1]
     second_level_3rd_party_subdomain = stats_3rd_party_second_level_domains[i][0]
     # we are printing only those detected as trackers
