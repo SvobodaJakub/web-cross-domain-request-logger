@@ -41,6 +41,8 @@ all_3rd_party_domains = set()
 visited_3rd_party_domains = {}
 all_3rd_party_second_level_domains = set()
 visited_3rd_party_second_level_domains = {}
+all_3rd_party_second_level_domains_mapping_to_subdomains = {}
+visited_3rd_party_second_level_domains_mapping_to_1st_party = {}
 with open(sys.argv[1]) as fp:
     for line in fp:
         line = line.strip()
@@ -51,6 +53,7 @@ with open(sys.argv[1]) as fp:
         visited_domain_second_level = set()
         domain_1st_party = domains[0]
         domain_1st_party = hack_TLDs_mangle_TLD(domain_1st_party)
+        domain_1st_party_second_level = ".".join(domain_1st_party.rsplit(".", 2)[-2:100000])
         for domain in domains[1:]:
             domain = domain.strip()
             domain = hack_TLDs_mangle_TLD(domain)
@@ -65,15 +68,25 @@ with open(sys.argv[1]) as fp:
                 # if the domain requested itself, I don't care
                 continue
             all_domains.add(domain)
-            if not domain.endswith(domain_1st_party):
+            if not domain.endswith("." + domain_1st_party) and not domain == domain_1st_party:
                 visited_domain.add(domain)
                 all_3rd_party_domains.add(domain)
                 # ignoring the problem of public suffixes (co.uk etc.)
                 domain_second_level = ".".join(domain.rsplit(".", 2)[-2:100000])
                 visited_domain_second_level.add(domain_second_level)
                 all_3rd_party_second_level_domains.add(domain_second_level)
+
+                if domain_second_level not in all_3rd_party_second_level_domains_mapping_to_subdomains:
+                    all_3rd_party_second_level_domains_mapping_to_subdomains[domain_second_level] = set()
+                all_3rd_party_second_level_domains_mapping_to_subdomains[domain_second_level].add(domain)
+
+                if domain_second_level not in visited_3rd_party_second_level_domains_mapping_to_1st_party:
+                    visited_3rd_party_second_level_domains_mapping_to_1st_party[domain_second_level] = set()
+                visited_3rd_party_second_level_domains_mapping_to_1st_party[domain_second_level].add(domain_1st_party_second_level)
+                
         visited_3rd_party_domains[domain_1st_party] = visited_domain
         visited_3rd_party_second_level_domains[domain_1st_party] = visited_domain_second_level
+
 
 # 3rd party domain, number of 1st party domains that requested this 3rd party domain
 stats_3rd_party_domains = []
@@ -140,7 +153,8 @@ for domain_1st_party in domains_1st_party_that_loaded_enough_3rd_party_domains:
 # it depends on personal taste where is your line between false and true positive
 whitelist_second_level_domains = set(["google.com", "comodo.com", "akamai.net", "o2.cz", "mapy.cz", "stripe.network", "getpocket.com", "microsoft.com",
 "s-microsoft.com", "akamaized.net", "typekit.com", "reddit.com", "stripe.com", "akamaihd.com", "googlecode.com", "windows.net", "imgur.com", "fontawesome.com", "appspot.com", "wp.com", "wordpress.com", "vimeo.com", "seznam.cz", "blogspot.cz", "blogspot.com", "github.io", "aspnetcdn.com", "vimeocdn.com", "blogger.com", "w.org", "jsdelivr.com", "jsdelivr.net", "t.co", "bing.com", "googleusercontent.com", "typekit.net", "twimg.com", "youtube.com", "ytimg.com", "jquery.com", "amazonaws.com", "cloudfront.net", "heureka.cz", "cloudflare.com", "bootstrapcdn.com", "twitter.com", "google.cz", "gstatic.com", "googleapis.com", "goo.gl", "szn.cz", "jquerytools.com", "adobetm.net", "adobetm.com", "steampowered.com", "steamstatic.com", "akamaihd.net", "pcworld.cz", "cz.", "com.", "virustotal.com", "nytimes.com", "muni.cz", "alza.cz", "penize.cz", "mathjax.org", 
-"free.fr", "wikimedia.org", "googlepages.com", "ggpht.com", "cad.cz", "rozhlas.cz", "github.com", "jquerytools.com", "polyfill.io", "ifirmy.cz", "webnode.cz", "webnode.com", "sdk.azureedge.net", "dropboxusercontent.com", "dropbox.com", "githubusercontent.com"
+"free.fr", "wikimedia.org", "googlepages.com", "ggpht.com", "cad.cz", "rozhlas.cz", "github.com", "jquerytools.com", "polyfill.io", "ifirmy.cz", "webnode.cz", "webnode.com", "sdk.azureedge.net", "dropboxusercontent.com", "dropbox.com", "githubusercontent.com",
+"googlevideo.com", "youtube.cz", "googlevideo.cz", "youtube-nocookie.com",
 
 ])
 
@@ -188,8 +202,9 @@ for i in range(min(50000, len(stats_3rd_party_second_level_domains)-1)):
     print("{} {}".format(stats_3rd_party_second_level_domains[i][1], hack_TLDs_unmangle_TLD(stats_3rd_party_second_level_domains[i][0])))
     ending = stats_3rd_party_second_level_domains[i][0]
     # print all the individual 3rd party subdomains under this second-level domain
-    for fulldomain in all_3rd_party_domains:
-        if fulldomain.endswith("." + ending) or fulldomain == ending:
+    if ending in all_3rd_party_second_level_domains:
+        fulldomains = all_3rd_party_second_level_domains_mapping_to_subdomains[ending]
+        for fulldomain in fulldomains:
             print("        {}".format(hack_TLDs_unmangle_TLD(fulldomain)))
     # # print 1st party domains from which these 3rd party domains were requested
     # for domain_1st_party, domains_3rd_party in visited_3rd_party_second_level_domains.items():
@@ -201,19 +216,19 @@ print("3rd party second-level domains that are probably ads/trackers")
 print("-------------------------------------------------------------\n")
 for i in range(min(50000, len(stats_3rd_party_second_level_domains)-1)):
     num_of_inclusions_in_1st_party_domains = stats_3rd_party_second_level_domains[i][1]
-    second_level_3rd_party_subdomain = stats_3rd_party_second_level_domains[i][0]
+    second_level_3rd_party_domain = stats_3rd_party_second_level_domains[i][0]
     # we are printing only those detected as trackers
-    if second_level_3rd_party_subdomain not in probably_tracking_3rd_party_second_level_domains:
+    if second_level_3rd_party_domain not in probably_tracking_3rd_party_second_level_domains:
         continue
-    print("{} {}".format(num_of_inclusions_in_1st_party_domains, hack_TLDs_unmangle_TLD(second_level_3rd_party_subdomain)))
+    print("{} {}".format(num_of_inclusions_in_1st_party_domains, hack_TLDs_unmangle_TLD(second_level_3rd_party_domain)))
     # print all the individual 3rd party subdomains under this second-level domain
-    for fulldomain in all_3rd_party_domains:
-        if fulldomain.endswith("." + second_level_3rd_party_subdomain) or fulldomain == second_level_3rd_party_subdomain:
+    if second_level_3rd_party_domain in all_3rd_party_second_level_domains:
+        fulldomains = all_3rd_party_second_level_domains_mapping_to_subdomains[ending]
+        for fulldomain in fulldomains:
             print("        {}".format(hack_TLDs_unmangle_TLD(fulldomain)))
     # print 1st party domains from which these 3rd party domains were requested
-    for domain_1st_party, domains_3rd_party in visited_3rd_party_second_level_domains.items():
-        if second_level_3rd_party_subdomain in domains_3rd_party: 
-            print("  *    {}".format(hack_TLDs_unmangle_TLD(domain_1st_party)))
+    for domain_1st_party_second_level in visited_3rd_party_second_level_domains_mapping_to_1st_party[second_level_3rd_party_domain]:
+        print("  *    {}".format(hack_TLDs_unmangle_TLD(domain_1st_party_second_level)))
 print("")
 
 
@@ -222,9 +237,9 @@ print("3rd party second-level domains that are probably ads/trackers - only the 
 print("--------------------------------------------------------------------------------\n")
 for i in range(min(50000, len(stats_3rd_party_second_level_domains)-1)):
     num_of_inclusions_in_1st_party_domains = stats_3rd_party_second_level_domains[i][1]
-    second_level_3rd_party_subdomain = stats_3rd_party_second_level_domains[i][0]
+    second_level_3rd_party_domain = stats_3rd_party_second_level_domains[i][0]
     # we are printing only those detected as trackers
-    if second_level_3rd_party_subdomain not in probably_tracking_3rd_party_second_level_domains:
+    if second_level_3rd_party_domain not in probably_tracking_3rd_party_second_level_domains:
         continue
-    print("{}".format(hack_TLDs_unmangle_TLD(second_level_3rd_party_subdomain)))
+    print("{}".format(hack_TLDs_unmangle_TLD(second_level_3rd_party_domain)))
 print("")
