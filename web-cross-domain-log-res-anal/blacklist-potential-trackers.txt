@@ -1005,7 +1005,6 @@ ftjcfx.com
 wt-safetag.com
 keen.io
 highwebmedia.com
-giphy.com
 google.ru
 ebaystatic.com
 vamaker.com
@@ -1018,7 +1017,6 @@ vdopia.com
 hit.ua
 lj-toys.com
 awltovhc.com
-googledrive.com
 luxup.ru
 blogimg.jp
 nsaudience.pl

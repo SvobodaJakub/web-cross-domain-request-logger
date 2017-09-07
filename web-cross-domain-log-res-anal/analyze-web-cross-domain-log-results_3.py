@@ -154,7 +154,7 @@ for domain_1st_party in domains_1st_party_that_loaded_enough_3rd_party_domains:
 whitelist_second_level_domains = set(["google.com", "comodo.com", "akamai.net", "o2.cz", "mapy.cz", "stripe.network", "getpocket.com", "microsoft.com",
 "s-microsoft.com", "akamaized.net", "typekit.com", "reddit.com", "stripe.com", "akamaihd.com", "googlecode.com", "windows.net", "imgur.com", "fontawesome.com", "appspot.com", "wp.com", "wordpress.com", "vimeo.com", "seznam.cz", "blogspot.cz", "blogspot.com", "github.io", "aspnetcdn.com", "vimeocdn.com", "blogger.com", "w.org", "jsdelivr.com", "jsdelivr.net", "t.co", "bing.com", "googleusercontent.com", "typekit.net", "twimg.com", "youtube.com", "ytimg.com", "jquery.com", "amazonaws.com", "cloudfront.net", "heureka.cz", "cloudflare.com", "bootstrapcdn.com", "twitter.com", "google.cz", "gstatic.com", "googleapis.com", "goo.gl", "szn.cz", "jquerytools.com", "adobetm.net", "adobetm.com", "steampowered.com", "steamstatic.com", "akamaihd.net", "pcworld.cz", "cz.", "com.", "virustotal.com", "nytimes.com", "muni.cz", "alza.cz", "penize.cz", "mathjax.org", 
 "free.fr", "wikimedia.org", "googlepages.com", "ggpht.com", "cad.cz", "rozhlas.cz", "github.com", "jquerytools.com", "polyfill.io", "ifirmy.cz", "webnode.cz", "webnode.com", "sdk.azureedge.net", "dropboxusercontent.com", "dropbox.com", "githubusercontent.com",
-"googlevideo.com", "youtube.cz", "googlevideo.cz", "youtube-nocookie.com",
+"googlevideo.com", "youtube.cz", "googlevideo.cz", "youtube-nocookie.com", "giphy.com", "googledrive.com", 
 
 ])
 
